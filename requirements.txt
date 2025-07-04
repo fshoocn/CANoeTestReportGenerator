@@ -1,0 +1,17 @@
+# 测试报告生成器依赖包
+
+# 打包工具
+pyinstaller>=5.0.0
+
+# GUI框架 (Python通常自带)
+# tkinter
+
+# 标准库依赖 (Python自带，无需安装)
+# xml.etree.ElementTree
+# datetime
+# pathlib
+# json
+# os
+# sys
+# threading
+# webbrowser
