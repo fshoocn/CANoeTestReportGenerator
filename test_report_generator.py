@@ -188,10 +188,8 @@ class TestReportParser:
                 if desc_elem is not None:
                     test_case.description = desc_elem.text or ''
                 
-                # 解析测试步骤
-                for step_elem in child.findall('teststep'):
-                    step = self._parse_test_step(step_elem)
-                    test_case.test_steps.append(step)
+                # 递归解析testcase中的所有子元素，包括testpattern和teststep
+                self._parse_testcase_elements(child, test_case)
                 
                 self.report_data.test_items.append(test_case)
             
@@ -200,6 +198,50 @@ class TestReportParser:
                 self._parse_elements_recursive(child)
             
             # 忽略其他元素类型（如title, preparation等）
+    
+    def _parse_testcase_elements(self, testcase_elem, test_case):
+        """递归解析testcase中的所有元素，包括testpattern和teststep"""
+        for child in testcase_elem:
+            if child.tag == 'teststep':
+                # 直接的测试步骤
+                step = self._parse_test_step(child)
+                test_case.test_steps.append(step)
+            elif child.tag == 'testpattern':
+                # testpattern元素，需要解析其中的内容
+                self._parse_testpattern(child, test_case)
+            # 忽略其他元素（title, description, verdict等已在上层处理）
+    
+    def _parse_testpattern(self, testpattern_elem, test_case):
+        """解析testpattern元素"""
+        # testpattern本身的信息可以作为一个分组标记
+        pattern_name = testpattern_elem.get('name', '')
+        pattern_type = testpattern_elem.get('type', '')
+        pattern_timestamp = testpattern_elem.get('timestamp', '')
+        
+        # 获取testpattern的title
+        title_elem = testpattern_elem.find('title')
+        pattern_title = title_elem.text if title_elem is not None else pattern_name
+        
+        # 如果有标题，可以添加一个标记性的步骤来表示testpattern的开始
+        if pattern_title:
+            pattern_step = TestStep()
+            pattern_step.timestamp = pattern_timestamp
+            pattern_step.level = "0"
+            pattern_step.type = "testpattern"
+            pattern_step.ident = "pattern"
+            pattern_step.result = "na"
+            pattern_step.content = f"=== {pattern_title} ==="
+            test_case.test_steps.append(pattern_step)
+        
+        # 递归解析testpattern中的所有子元素
+        for child in testpattern_elem:
+            if child.tag == 'teststep':
+                step = self._parse_test_step(child)
+                test_case.test_steps.append(step)
+            elif child.tag == 'testpattern':
+                # 嵌套的testpattern
+                self._parse_testpattern(child, test_case)
+            # result元素也被忽略，因为整个testcase的结果已经在verdict中处理
     
     def _parse_test_step(self, step_elem):
         """解析测试步骤"""
@@ -3558,7 +3600,7 @@ def main():
     
     try:
         # 输入和输出文件路径
-        input_file = 'TestReport0002.xml'
+        input_file = 'Report.xml'
         output_file = 'test_report.html'
         
         print(f"正在解析XML文件: {input_file}")
